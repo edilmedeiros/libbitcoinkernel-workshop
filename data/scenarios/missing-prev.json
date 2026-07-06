@@ -1,0 +1,8 @@
+{
+  "description": "Replay prefix, then process 102 and 104 while skipping 103.",
+  "process": [
+    "data/blocks-main/102-fund-alice.hex",
+    "data/blocks-main/104-bob-pays-carol.hex"
+  ],
+  "expected_lesson": "The block can parse and pass context-free checks while failing to connect to chainstate."
+}

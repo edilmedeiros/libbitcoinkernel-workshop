@@ -1,0 +1,18 @@
+{
+  "description": "Replay common chain, then A branch, then longer B branch.",
+  "common": [
+    "data/blocks-main/102-fund-alice.hex",
+    "data/blocks-main/103-alice-pays-bob.hex",
+    "data/blocks-main/104-bob-pays-carol.hex"
+  ],
+  "branch_a": [
+    "data/blocks-reorg/a/105a.hex",
+    "data/blocks-reorg/a/106a.hex"
+  ],
+  "branch_b": [
+    "data/blocks-reorg/b/105b.hex",
+    "data/blocks-reorg/b/106b.hex",
+    "data/blocks-reorg/b/107b.hex"
+  ],
+  "expected_lesson": "The active chain can change while stale branch blocks remain addressable through the block tree."
+}
