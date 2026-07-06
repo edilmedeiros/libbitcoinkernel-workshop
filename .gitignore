@@ -203,6 +203,10 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Workshop runtime datadirs
+.kernel-lab/
+.kernel-lab.json
+
 # Ruff stuff:
 .ruff_cache/
 
@@ -216,3 +220,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+/.bitcoin-core-regtest/regtest
