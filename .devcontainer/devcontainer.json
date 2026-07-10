@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json",
+  "name": "libbitcoinkernel-workshop",
+  "image": "ghcr.io/edilmedeiros/libbitcoinkernel-workshop/devcontainer:master",
+  "workspaceFolder": "/workshop",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workshop,type=bind,consistency=cached",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "EditorConfig.EditorConfig",
+        "Gruntfuggly.todo-tree"
+      ],
+      "settings": {
+        "extensions.ignoreRecommendations": false,
+        "chat.disableAIFeatures": true,
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "[python]": {
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.analysis.typeCheckingMode": "standard"
+      }
+    }
+  },
+  "onCreateCommand": "uv sync"
+}
