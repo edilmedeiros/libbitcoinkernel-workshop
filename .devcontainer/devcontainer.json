@@ -1,10 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json",
   "name": "libbitcoinkernel-workshop",
-  "build": {
-    "dockerfile": "../Containerfile",
-    "target": "builder"
-  },
+  "image": "ghcr.io/edilmedeiros/libbitcoinkernel-workshop/devcontainer:master",
   "workspaceFolder": "/workshop",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workshop,type=bind,consistency=cached",
   "customizations": {
