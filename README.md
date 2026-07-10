@@ -43,6 +43,12 @@ kernel-lab --help
 
 Start the guided workshop with:
 
+<!-- TODO: (@oleonardolima) add the description for overview command -->
+
+```bash
+kernel-lab tutorial overview
+```
+
 ```bash
 kernel-lab tutorial
 ```
@@ -54,9 +60,9 @@ should run manually. It does not run the exercise for you.
 Navigate with:
 
 ```bash
+kernel-lab tutorial overview
 kernel-lab tutorial next
 kernel-lab tutorial previous
-kernel-lab tutorial overview
 ```
 
 Use `--plain` if you want deterministic text without colors or panels:
@@ -70,4 +76,3 @@ kernel-lab tutorial --plain
 The source code contains TODO annotations tied to the tutorial lessons. Those
 TODOs mark the places where students should implement or complete something as
 they move through the workshop.
-

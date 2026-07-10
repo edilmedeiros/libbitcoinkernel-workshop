@@ -20,7 +20,7 @@ def print_lines(lines: list[str]) -> None:
 
 
 def cmd_parse_block(args: argparse.Namespace) -> int:
-    # TODO lesson 01: load the file data/blocks-main/102-fund-alice.hex
+    # TODO: (#2) load the file data/blocks-main/102-fund-alice.hex
     # and create a Block object. Print the blockhash.
     loaded = load_block(args.path)
     print_lines(describe_block(loaded))
@@ -28,6 +28,7 @@ def cmd_parse_block(args: argparse.Namespace) -> int:
 
 
 def cmd_parse_tx(args: argparse.Namespace) -> int:
+    # TODO: (#1) load the file data/tx/103-alice-pays-bob.hex
     loaded = load_transaction(args.path)
     print_lines(describe_transaction(loaded))
     return 0
@@ -111,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kernel-lab",
         description=(
-            "A libibtcoinkernel tutorial tool for exploring Bitcoin validation "
+            "A libbitcoinkernel tutorial tool for exploring Bitcoin validation "
             "without building a node."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -135,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.set_defaults(func=cmd_tutorial)
 
-    ## 1. Parsing and object inpection
+    ## 1. Parsing and object inspection
     p = sub.add_parser("parse-block")
     p.add_argument("path", type=Path)
     p.set_defaults(func=cmd_parse_block)

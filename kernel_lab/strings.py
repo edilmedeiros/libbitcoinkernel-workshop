@@ -156,7 +156,7 @@ parsed and inspected, not proven valid.
 3. Create or load a syntactically invalid transaction and observe how the
    binding reports the failure.
 
-   A simple starting fixture is a truncated transaction:
+   For example, a simple starting fixture is a truncated transaction:
 
        data/tx-invalid/103-alice-pays-bob-truncated.hex
 
@@ -968,12 +968,12 @@ Discussion and investigation:
 """.strip(),
 )
 
-# TODO: add a lesson for logging before ingesting the blockchain. It will make
-# it more clear what means to be a statefull library. The student should also 
+# TODO: (@edilmedeiros) add a lesson for logging before ingesting the blockchain. It will make
+# it more clear what means to be a stateful library. The student should also
 # be called to inspect the datadir that was created and see the chainstate database
 # and blocksdir.
 
-# TODO: add a lesson for exploring the orphan blocks that were left after the
+# TODO: (@edilmedeiros) add a lesson for exploring the orphan blocks that were left after the
 # reorganization by using BlockTreeEntries.
 TUTORIAL_LESSONS: tuple[TutorialLesson, ...] = (
     lesson01,
