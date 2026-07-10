@@ -18,6 +18,8 @@ while doing the workshop.
 
 You need `uv` installed on your system.
 
+To build the **py-bitcoinkernel** dependency you'll need to install system dependencies in your machine. These system deps can be found [here](https://github.com/bitcoin/bitcoin/blob/master/depends/README.md#depends-build).
+
 From the repository root:
 
 ```bash
@@ -70,4 +72,3 @@ kernel-lab tutorial --plain
 The source code contains TODO annotations tied to the tutorial lessons. Those
 TODOs mark the places where students should implement or complete something as
 they move through the workshop.
-
