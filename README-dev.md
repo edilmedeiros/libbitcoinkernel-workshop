@@ -1,3 +1,10 @@
+# NOTES
+
+1. Parse file `data/tx/103-alice-pays-bob.hex`
+2. Parse malleated tx: `data/tx/103.alice-pays-bob-malleaated.hex`
+
+
+
 # Development Commands
 
 This repository contains the complete solution code for the Python
@@ -52,3 +59,4 @@ primitive command to run manually; it does not execute that command.
 
 The `.kernel-lab.json` file stores only tutorial position. Use `--plain` for
 deterministic text without colors or panels.
+

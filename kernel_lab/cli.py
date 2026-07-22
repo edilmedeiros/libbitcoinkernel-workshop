@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Callable
+import json
+import shutil
 from pathlib import Path
 
-from . import chainstate
-from . import pbk_compat as compat
-from . import tutorial
-from .objects import describe_block, describe_transaction, load_block, load_transaction
-from .script import verify_prevout_fixture
+try:
+    import pbk
+except ModuleNotFoundError:  # pragma: no cover - exercised only in broken envs.
+    raise RuntimeError(
+        "py-bitcoinkernel is not installed. Run inside the project environment."
+    )
 
 
 def print_lines(lines: list[str]) -> None:
@@ -19,91 +21,234 @@ def print_lines(lines: list[str]) -> None:
         print(line)
 
 
-def cmd_parse_block(args: argparse.Namespace) -> int:
-    # TODO lesson 01: load the file data/blocks-main/102-fund-alice.hex
-    # and create a Block object. Print the blockhash.
-    loaded = load_block(args.path)
-    print_lines(describe_block(loaded))
-    return 0
-
-
+# TODO 01: Load file data/tx/103-alice-pays-bob.hex into a Transaction object
 def cmd_parse_tx(args: argparse.Namespace) -> int:
-    loaded = load_transaction(args.path)
-    print_lines(describe_transaction(loaded))
+    ## 1. Read hex file
+    fp = Path(args.path)
+    hex = fp.read_text(encoding="utf-8")
+    raw = bytes.fromhex(hex)
+
+    ## 2. Create Transaction object
+    tx = pbk.Transaction(raw)
+
+    ## 3. Inspect object
+    print(f"txid: {tx.txid}")
+    print(f"locktime: {tx.locktime}")
+    print(f"#inputs: {len(tx.inputs)}")
+    for inp in tx.inputs:
+        print(f"  txid : {inp.out_point.txid}")
+        print(f"  index: {inp.out_point.index}")
+    print(f"#outputs: {len(tx.outputs)}")
+    for out in tx.outputs:
+        print(f"  amount: {out.amount}")
+        print(f"  scriptPubKey: {out.script_pubkey}")
+
+    ## 4. Return success
     return 0
 
 
+# TODO 02: load the file data/blocks-main/102-fund-alice.hex
+# and create a Block object.
+def cmd_parse_block(args: argparse.Namespace) -> int:
+    ## 1. Read hex file
+    fp = Path(args.path)
+    hex = fp.read_text(encoding="utf-8")
+    raw = bytes.fromhex(hex)
+
+    ## 2. Create Block object
+    block = pbk.Block(raw)
+
+    ## 3. Inspect object
+    print(f"block hash: {block.block_hash}")
+    print(f"previous block: {block.block_header.prev_hash}")
+    print(f"timestamp: {block.block_header.timestamp}")
+    print("transactions:")
+    for tx in block.transactions:
+        print(f"  {tx.txid}")
+
+    ## 4. Return success
+    return 0
+
+
+# TODO 03: load block and check it
 def cmd_check_block(args: argparse.Namespace) -> int:
-    try:
-        loaded = load_block(args.path)
-    except Exception as exc:  # noqa: BLE001 - CLI should explain parse failure.
-        print(f"source: {args.path}")
-        print("parse_ok: false")
-        print(f"error: {type(exc).__name__}: {exc}")
-        return 1
+    ## 1. Read hex file
+    fp = Path(args.path)
+    hex = fp.read_text(encoding="utf-8")
+    raw = bytes.fromhex(hex)
 
-    print(f"source: {args.path}")
-    print("parse_ok: true")
-    print(f"hash: {compat.block_hash(loaded.obj)}")
-    ok, detail = compat.check_block(loaded.obj)
-    print(f"context_free_valid: {str(ok).lower()}")
-    print(f"detail: {detail}")
-    return 0 if ok else 2
+    ## 2. Create block object
+    block = pbk.Block(raw)
+
+    ## 3. Check block
+    consensus_params = pbk.ChainParameters(pbk.ChainType.REGTEST).consensus_params
+    flags = pbk.BlockCheckFlags.MERKLE | pbk.BlockCheckFlags.POW
+    state = block.check(consensus_params, flags)
+
+    ## 4. Inpect results
+    valid = state.validation_mode == pbk.ValidationMode.VALID
+    print(f"context free valid: {str(valid).lower()}")
+    print(f"validation mode: {state.validation_mode.name}")
+    print(f"validation result: {state.block_validation_result.name}")
+
+    ## 5. Return success
+    return 0
 
 
+# TODO 04: verify script
 def cmd_verify_script(args: argparse.Namespace) -> int:
-    ok, lines = verify_prevout_fixture(args.path)
+    ## 1. Read json file with required data
+    fp = Path(args.path)
+    fixture = json.loads(fp.read_text(encoding="utf-8"))
+
+    ## 2. Create transaction object to verify
+    tx_path = Path(fixture["spending_tx_file"])
+    tx_hex = tx_path.read_text(encoding="utf-8")
+    tx_raw = bytes.fromhex(tx_hex)
+    tx_loaded = pbk.Transaction(tx_raw)
+
+    ## 3. Get previous output data
+    prevout = fixture["prevout"]
+    amount_sats = int(prevout["amount_sats"])
+    input_index = int(fixture["input_index"])
+    script_pubkey = bytes.fromhex(prevout["script_pubkey_hex"])
+    spk = pbk.ScriptPubkey(script_pubkey)
+
+    ## 4. Set what we want to verify
+    svf = pbk.ScriptVerificationFlags
+    flags = svf.P2SH | \
+        svf.DERSIG | \
+        svf.NULLDUMMY | \
+        svf.CHECKLOCKTIMEVERIFY | \
+        svf.CHECKSEQUENCEVERIFY | \
+        svf.WITNESS
+
+    result = spk.verify(amount_sats, tx_loaded, None, input_index, flags)
+    
+    ok = bool(result)
+    detail = f"status={result}"
+
+    lines = [
+        f"source: {args.path}",
+        f"spending_tx: {fixture['spending_tx_file']}",
+        f"input_index: {input_index}",
+        f"prevout_txid: {prevout['txid']}",
+        f"prevout_vout: {prevout['vout']}",
+        f"amount_sats: {amount_sats}",
+        f"script_pubkey: {prevout['script_pubkey_hex']}",
+        f"script_valid: {str(ok).lower()}",
+        f"detail: {detail}",
+    ]
     print_lines(lines)
     return 0 if ok else 2
 
-
+# TODO 05: Load a series of blocks
 def cmd_replay_main(args: argparse.Namespace) -> int:
-    result = chainstate.run_replay_main(args.kernel_datadir, reset=not args.no_reset)
-    print_lines(chainstate.scenario_lines(result))
+    ## 1. Reset datadir if requested
+    datadir = Path(args.datadir)
+    if not args.no_reset:
+        if datadir.exists():
+            shutil.rmtree(datadir)
+    datadir.mkdir(parents=True, exist_ok=True)
+
+    ## 2. Enable logging
+    pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.INFO)
+    pbk.enable_log_category(pbk.LogCategory.ALL)
+
+    def log_callback(message):
+        print(f"{message[:-1]}")
+
+    _logger = pbk.LoggingConnection(log_callback)
+
+    ## 3. Add callbacks
+    def block_checked(self, block, state):
+        print(f"--- Block checked: {block.block_hash}")
+
+    def pow_valid_block(self, block, entry):
+        print(f"--- Block has valid pow: {block.block_hash}")
+
+    def block_connected(self, block, entry):
+        print(f"--- Block connected: {block.block_hash}")
+
+    def block_disconnected(self, block, entry):
+        print(f"--- Block disconnected: {block.block_hash}")
+
+    callbacks = pbk.ValidationInterfaceCallbacks(
+        block_checked=block_checked,
+        pow_valid_block=pow_valid_block,
+        block_connected=block_connected,
+        block_disconnected=block_disconnected)
+
+    ## 4. Open chainstate datadir
+    chainman = pbk.load_chainman(datadir, pbk.ChainType.REGTEST, callbacks)
+
+    # 5. Process blocks
+    for path in sorted(args.blocks.glob("*.hex")):
+        fp = Path(path)
+        print(f"--- Processing file {fp}")
+        hex = fp.read_text(encoding="utf-8")
+        raw = bytes.fromhex(hex)
+        block = pbk.Block(raw)
+        try:
+            chainman.process_block(block)
+        except Exception as e:
+            print(e)
+            return 1
+
+    ## 6. Return success
     return 0
 
+# TODO 06: Process single block
+def cmd_process_block(args: argparse.Namespace) -> int:
+    ## 1. Get datadir
+    datadir = Path(args.datadir)
+    datadir.mkdir(parents=True, exist_ok=True)
 
-def cmd_missing_prev(args: argparse.Namespace) -> int:
-    result = chainstate.run_missing_prev(args.kernel_datadir, reset=not args.no_reset)
-    print_lines(chainstate.scenario_lines(result))
+    ## 2. Enable logging
+    pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.INFO)
+    pbk.enable_log_category(pbk.LogCategory.ALL)
+
+    def log_callback(message):
+        print(f"{message[:-1]}")
+
+    _logger = pbk.LoggingConnection(log_callback)
+
+    ## 3. Add callbacks
+    def block_checked(self, block, state):
+        print(f"--- Block checked: {block.block_hash}")
+
+    def pow_valid_block(self, block, entry):
+        print(f"--- Block has valid pow: {block.block_hash}")
+
+    def block_connected(self, block, entry):
+        print(f"--- Block connected: {block.block_hash}")
+
+    def block_disconnected(self, block, entry):
+        print(f"--- Block disconnected: {block.block_hash}")
+
+    callbacks = pbk.ValidationInterfaceCallbacks(
+        block_checked=block_checked,
+        pow_valid_block=pow_valid_block,
+        block_connected=block_connected,
+        block_disconnected=block_disconnected)
+
+    ## 4. Open chainstate datadir
+    chainman = pbk.load_chainman(datadir, pbk.ChainType.REGTEST, callbacks)
+
+    # 5. Process block
+    fp = Path(args.block)
+    print(f"--- Processing file {fp}")
+    hex = fp.read_text(encoding="utf-8")
+    raw = bytes.fromhex(hex)
+    block = pbk.Block(raw)
+    try:
+        chainman.process_block(block)
+    except Exception as e:
+        print(e)
+        return 1
+
+    ## 6. Return success
     return 0
-
-
-def cmd_reorg(args: argparse.Namespace) -> int:
-    result = chainstate.run_reorg(args.kernel_datadir, reset=not args.no_reset)
-    print_lines(chainstate.scenario_lines(result))
-    return 0
-
-
-def cmd_walkthrough(args: argparse.Namespace) -> int:
-    sections: list[tuple[str, Callable[[], int]]] = [
-        ("parse block", lambda: cmd_parse_block(argparse.Namespace(path=Path("data/blocks-main/102-fund-alice.hex")))),
-        ("parse transaction", lambda: cmd_parse_tx(argparse.Namespace(path=Path("data/tx/103-alice-pays-bob.hex")))),
-        ("check valid block", lambda: cmd_check_block(argparse.Namespace(path=Path("data/blocks-main/102-fund-alice.hex")))),
-        ("check bad merkle block", lambda: cmd_check_block(argparse.Namespace(path=Path("data/blocks-invalid/102-bad-merkle.hex")))),
-        ("verify correct script context", lambda: cmd_verify_script(argparse.Namespace(path=Path("data/prevouts/103-input0-correct.json")))),
-        ("verify wrong amount", lambda: cmd_verify_script(argparse.Namespace(path=Path("data/prevouts/103-input0-wrong-amount.json")))),
-        ("verify wrong script", lambda: cmd_verify_script(argparse.Namespace(path=Path("data/prevouts/103-input0-wrong-script.json")))),
-        ("replay main", lambda: cmd_replay_main(args)),
-        ("missing previous context", lambda: cmd_missing_prev(args)),
-        ("reorg", lambda: cmd_reorg(args)),
-    ]
-    worst = 0
-    for title, fn in sections:
-        print(f"== {title} ==")
-        code = fn()
-        worst = max(worst, code)
-    return 0 if worst in {0, 2} else worst
-
-
-def cmd_tutorial(args: argparse.Namespace) -> int:
-    if args.action not in {"show", "overview", "next", "previous"}:
-        print(
-            "kernel-lab tutorial: action must be one of overview, next, previous",
-            file=sys.stderr,
-        )
-        return 2
-    return tutorial.run_tutorial(args.action, plain=args.plain)
 
 
 # Define command line commands
@@ -111,39 +256,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kernel-lab",
         description=(
-            "A libibtcoinkernel tutorial tool for exploring Bitcoin validation "
-            "without building a node."
+            "A libibtcoinkernel tutorial for exploring Bitcoin validation"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser(
-        "tutorial",
-        help="Show the current instructional lesson without running commands.",
-    )
-    p.add_argument(
-        "action",
-        nargs="?",
-        default="show",
-        metavar="{overview,next,previous}",
-    )
-    p.add_argument(
-        "--plain",
-        action="store_true",
-        help="Print tutorial text without colors or panels.",
-    )
-    p.set_defaults(func=cmd_tutorial)
-
-    ## 1. Parsing and object inpection
-    p = sub.add_parser("parse-block")
-    p.add_argument("path", type=Path)
-    p.set_defaults(func=cmd_parse_block)
-
+    ## 1. Parse transaction
     p = sub.add_parser("parse-tx")
     p.add_argument("path", type=Path)
     p.set_defaults(func=cmd_parse_tx)
 
+    # 2. Parse block
+    p = sub.add_parser("parse-block")
+    p.add_argument("path", type=Path)
+    p.set_defaults(func=cmd_parse_block)
+
+    # 3. Check block
     p = sub.add_parser("check-block")
     p.add_argument("path", type=Path)
     p.set_defaults(func=cmd_check_block)
@@ -152,16 +281,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path", type=Path)
     p.set_defaults(func=cmd_verify_script)
 
-    for name, func in [
-        ("replay-main", cmd_replay_main),
-        ("missing-prev", cmd_missing_prev),
-        ("reorg", cmd_reorg),
-        ("walkthrough", cmd_walkthrough),
-    ]:
-        p = sub.add_parser(name)
-        p.add_argument("--kernel-datadir", type=Path, required=True)
-        p.add_argument("--no-reset", action="store_true")
-        p.set_defaults(func=func)
+    p = sub.add_parser("replay-blocks")
+    p.add_argument("--datadir", type=Path, required=True)
+    p.add_argument("--blocks", type=Path, required=True)
+    p.add_argument("--no-reset", action="store_true")
+    p.set_defaults(func=cmd_replay_main)
+
+    p = sub.add_parser("process-block")
+    p.add_argument("--datadir", type=Path, required=True)
+    p.add_argument("--block", type=Path, required=True)
+    p.set_defaults(func=cmd_process_block)
 
     return parser
 
@@ -172,11 +301,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.func(args))
-    except compat.KernelApiError as exc:
-        print(f"kernel api error: {exc}", file=sys.stderr)
+    except Exception as e:
+        print(f"kernel api error: {e}", file=sys.stderr)
         return 3
 
 
 # Entry point
 if __name__ == "__main__":
     raise SystemExit(main())
+
